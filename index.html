@@ -838,6 +838,7 @@
   <script>
     const PROMO_CODE = "FAMILY2026";
     const STORAGE_KEY = "park_quest_found_ids_v2";
+    const LEGACY_STORAGE_KEYS = ["resort_quest_found_points_v1", "quest_found_ids"];
     const DEFAULT_MAP_CENTER = [55.7285, 37.6015];
     const DEFAULT_MAP_ZOOM = 15;
 
@@ -864,7 +865,8 @@
       { id: "point_20", number: 20, title: "Главные арки у центрального входа", zone: "Центральный партер", lat: 55.7328, lng: 37.6039 }
     ];
 
-    let foundIds = readStoredIds();
+    // Рабочая переменная прогресса (массив ID найденных точек)
+    let foundIds = [];
     let selectedLocationId = null;
     let leafletMap = null;
     let pinsLayerGroup = null;
@@ -872,27 +874,81 @@
     let html5QrInstance = null;
     let lastScanRecord = { code: "", timestamp: 0 };
 
+    // 1. Инициализация при полной загрузке DOM (DOMContentLoaded)
     document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("promo-code-text").textContent = PROMO_CODE;
+
+      // Загружаем сохраненный прогресс из localStorage в рабочую переменную
+      foundIds = readStoredIds();
+      if (foundIds.length > 0) {
+        selectedLocationId = foundIds[foundIds.length - 1];
+      }
+
+      // Инициализируем карту и сразу отрисовываем сохраненные пины, счетчик и список находок
       initializeLeafletMap();
-      updateProgressAndFoundListUI();
       syncFoundPinsOnMap();
+      updateProgressAndFoundListUI();
       attachUIEvents();
+
+      // Если есть сохраненные точки — центрируем карту на последней найденной метке
+      if (selectedLocationId && leafletMap) {
+        const lastLoc = QUEST_LOCATIONS.find((loc) => loc.id === selectedLocationId);
+        if (lastLoc) {
+          leafletMap.setView([lastLoc.lat, lastLoc.lng], 16);
+        }
+      }
+
+      // Если в localStorage уже собраны все 20 из 20 — сразу показываем модальное окно с промокодом
+      if (foundIds.length >= QUEST_LOCATIONS.length) {
+        showVictoryModalWithConfetti();
+      }
     });
 
+    // Чтение и валидация массива найденных ID из localStorage
     function readStoredIds() {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        let raw = localStorage.getItem(STORAGE_KEY);
+
+        // Проверка старых ключей на случай, если данные сохранялись в прошлой версии
+        if (!raw) {
+          for (const legacyKey of LEGACY_STORAGE_KEYS) {
+            const legacyRaw = localStorage.getItem(legacyKey);
+            if (legacyRaw) {
+              raw = legacyRaw;
+              break;
+            }
+          }
+        }
+
         if (!raw) return [];
+
         const parsed = JSON.parse(raw);
         if (!Array.isArray(parsed)) return [];
-        const validIds = new Set(QUEST_LOCATIONS.map((item) => item.id));
-        return Array.from(new Set(parsed.filter((id) => typeof id === "string" && validIds.has(id))));
+
+        const normalizedIds = [];
+        for (const item of parsed) {
+          if (typeof item !== "string") continue;
+          const cleaned = item.trim().toLowerCase();
+          const matched = QUEST_LOCATIONS.find(
+            (loc) => loc.id.toLowerCase() === cleaned || cleaned.includes(loc.id.toLowerCase())
+          );
+          if (matched && !normalizedIds.includes(matched.id)) {
+            normalizedIds.push(matched.id);
+          }
+        }
+
+        // Синхронизируем проверенный массив обратно в основной ключ localStorage
+        if (normalizedIds.length > 0) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedIds));
+        }
+
+        return normalizedIds;
       } catch (err) {
         return [];
       }
     }
 
+    // Сохранение текущего массива найденных ID в localStorage через JSON.stringify
     function persistFoundIds() {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(foundIds));
@@ -945,6 +1001,7 @@
       return ordered;
     }
 
+    // 2. Отрисовка открытых пинов на карте Leaflet
     function syncFoundPinsOnMap() {
       if (!pinsLayerGroup) return;
       pinsLayerGroup.clearLayers();
@@ -976,6 +1033,7 @@
       });
     }
 
+    // 2. Обновление счетчика прогресса и списка найденных локаций под картой
     function updateProgressAndFoundListUI() {
       const total = QUEST_LOCATIONS.length;
       const foundCount = foundIds.length;
@@ -1036,6 +1094,7 @@
       });
     }
 
+    // 3. Обработка сканирования и мгновенное сохранение в localStorage
     function processScannedQrText(rawText) {
       const cleaned = (rawText || "").trim();
       const matched = QUEST_LOCATIONS.find(
@@ -1054,8 +1113,10 @@
         return;
       }
 
+      // Добавляем новый ID и сразу сохраняем массив через JSON.stringify в localStorage
       foundIds.push(matched.id);
       persistFoundIds();
+
       selectedLocationId = matched.id;
       syncFoundPinsOnMap();
       updateProgressAndFoundListUI();
@@ -1067,7 +1128,7 @@
         marker.openPopup();
       }
 
-      if (foundIds.length === QUEST_LOCATIONS.length) {
+      if (foundIds.length >= QUEST_LOCATIONS.length) {
         showVictoryModalWithConfetti();
       } else {
         displayToast(`Новая находка! Открыта локация «${matched.title}».`);
@@ -1146,7 +1207,6 @@
       const showMap = tabName === "map";
       document.getElementById("view-map").classList.toggle("active", showMap);
       document.getElementById("view-scanner").classList.toggle("active", !showMap);
-      document.getElementById("tab-btn-map").classList.toggle("active", isMap => showMap);
       document.getElementById("tab-btn-map").classList.toggle("active", showMap);
       document.getElementById("tab-btn-scanner").classList.toggle("active", !showMap);
 
