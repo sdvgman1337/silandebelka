@@ -4,25 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Семейный Эко-Квест — Парк Отдыха</title>
-  <meta name="description" content="Интерактивное веб-приложение для прохождения QR-квеста на территории базы отдыха с картой локаций, встроенным сканером и системой наград." />
+  <meta name="description" content="Интерактивное веб-приложение для прохождения QR-квеста на территории базы отдыха с векторной картой локаций, встроенным сканером и системой наград." />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""
-  />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
 
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""
-  ></script>
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 
   <style>
@@ -37,6 +28,10 @@
       --orange-primary: #f97316;
       --orange-soft: #fff7ed;
       --orange-border: #fed7aa;
+      --red-primary: #ef4444;
+      --red-dark: #dc2626;
+      --red-soft: #fef2f2;
+      --red-border: #fecaca;
       --text-main: #0f172a;
       --text-muted: #64748b;
       --border-light: #e2e8f0;
@@ -105,6 +100,8 @@
       justify-content: center;
       flex-shrink: 0;
       box-shadow: 0 4px 12px rgba(16, 185, 129, 0.28);
+      user-select: none;
+      touch-action: manipulation;
     }
 
     .brand-title {
@@ -195,7 +192,7 @@
       position: relative;
       isolation: isolate;
       width: 100%;
-      height: 315px;
+      height: 325px;
       border-radius: var(--radius-lg);
       overflow: hidden;
       border: 1px solid var(--border-light);
@@ -205,7 +202,6 @@
     #quest-map {
       width: 100%;
       height: 100%;
-      z-index: 10;
     }
 
     .map-center-btn {
@@ -229,19 +225,81 @@
       cursor: pointer;
     }
 
-    .leaflet-popup-content-wrapper {
-      border-radius: 16px !important;
-      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.16) !important;
+    /* Стили маркеров и попапов MapLibre GL */
+    .quest-map-pin {
+      width: 40px;
+      height: 48px;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
     }
 
-    .leaflet-popup-content {
-      margin: 12px 14px !important;
+    .quest-map-pin-inner {
+      position: relative;
+      width: 40px;
+      height: 48px;
+      display: flex;
+      justify-content: center;
+      transition: transform 0.18s ease;
+    }
+
+    .quest-map-pin:active .quest-map-pin-inner {
+      transform: scale(0.94);
+    }
+
+    .quest-map-pin-head {
+      width: 36px;
+      height: 36px;
+      border-radius: 999px;
+      background: var(--green-primary);
+      border: 3px solid #ffffff;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.24);
+      color: #ffffff;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.18s ease;
+    }
+
+    .quest-map-pin-tail {
+      position: absolute;
+      bottom: 5px;
+      width: 10px;
+      height: 10px;
+      background: var(--green-primary);
+      transform: rotate(45deg);
+      border-right: 2px solid #ffffff;
+      border-bottom: 2px solid #ffffff;
+      transition: background-color 0.18s ease;
+    }
+
+    .quest-map-pin.is-selected .quest-map-pin-head,
+    .quest-map-pin.is-selected .quest-map-pin-tail {
+      background: var(--orange-primary);
+    }
+
+    .maplibregl-popup-content {
+      border-radius: 16px !important;
+      padding: 12px 26px 12px 14px !important;
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.18) !important;
       font-family: 'Plus Jakarta Sans', sans-serif !important;
     }
 
-    .custom-leaflet-pin {
-      background: transparent;
-      border: none;
+    .maplibregl-popup-close-button {
+      font-size: 18px;
+      padding: 4px 8px;
+      color: var(--text-muted);
+      border-radius: 8px;
+    }
+
+    .maplibregl-ctrl-group {
+      border-radius: 12px !important;
+      overflow: hidden;
+      border: 1px solid var(--border-light) !important;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1) !important;
     }
 
     .progress-top-row {
@@ -516,6 +574,25 @@
       box-shadow: 0 6px 18px rgba(5, 150, 105, 0.25);
     }
 
+    .btn-danger {
+      width: 100%;
+      min-height: 54px;
+      padding: 14px 22px;
+      border-radius: 16px;
+      border: none;
+      background: var(--red-dark);
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(220, 38, 38, 0.25);
+    }
+
     .btn-secondary {
       width: 100%;
       min-height: 52px;
@@ -635,6 +712,11 @@
       box-shadow: 0 10px 24px rgba(249, 115, 22, 0.3);
     }
 
+    .modal-icon-badge.danger {
+      background: linear-gradient(135deg, var(--red-primary), var(--red-dark));
+      box-shadow: 0 10px 24px rgba(239, 68, 68, 0.28);
+    }
+
     .modal-overline {
       font-size: 12px;
       font-weight: 800;
@@ -642,6 +724,10 @@
       letter-spacing: 0.06em;
       color: var(--green-dark);
       margin-bottom: 4px;
+    }
+
+    .modal-overline.danger {
+      color: var(--red-dark);
     }
 
     .modal-heading {
@@ -696,7 +782,7 @@
   <div class="app-wrapper">
     <header class="app-header">
       <div class="brand-info">
-        <div class="brand-badge-icon" aria-hidden="true">
+        <div id="secret-reset-trigger" class="brand-badge-icon" aria-hidden="true">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 3L4 14h6l-1 7 9-11h-6l1-7z"/>
           </svg>
@@ -813,6 +899,7 @@
       </div>
     </nav>
 
+    <!-- Модальное окно победы -->
     <div id="victory-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="victory-heading">
       <div class="modal-dialog-card">
         <div class="modal-icon-badge" aria-hidden="true">🏆</div>
@@ -833,14 +920,41 @@
         </div>
       </div>
     </div>
+
+    <!-- Секретное сервисное окно сброса прогресса -->
+    <div id="reset-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="reset-heading">
+      <div class="modal-dialog-card">
+        <div class="modal-icon-badge danger" aria-hidden="true">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+          </svg>
+        </div>
+        <div class="modal-overline danger">Сервисное меню</div>
+        <h2 id="reset-heading" class="modal-heading">Сбросить прогресс?</h2>
+        <p class="modal-body-text">
+          Все найденные метки на этом устройстве будут удалены, и прохождение квеста начнется с нуля (0 из 20).
+        </p>
+
+        <div class="modal-btn-stack">
+          <button id="btn-confirm-reset" class="btn-danger" type="button">Сбросить весь прогресс</button>
+          <button id="btn-cancel-reset" class="btn-secondary" type="button">Отмена</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
     const PROMO_CODE = "FAMILY2026";
     const STORAGE_KEY = "park_quest_found_ids_v2";
     const LEGACY_STORAGE_KEYS = ["resort_quest_found_points_v1", "quest_found_ids"];
+    // Формат координат [широта (lat), долгота (lng)] — как в Яндекс и Google Картах
     const DEFAULT_MAP_CENTER = [55.7285, 37.6015];
-    const DEFAULT_MAP_ZOOM = 15;
+    const DEFAULT_MAP_ZOOM = 14.6;
+
+    // Векторные стили MapLibre без API-ключей (основной + резервный)
+    const PRIMARY_VECTOR_STYLE = "https://tiles.openfreemap.org/styles/liberty";
+    const FALLBACK_VECTOR_STYLE = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 
     const QUEST_LOCATIONS = [
       { id: "point_01", number: 1,  title: "Главный фонтан на центральной аллее", zone: "Центральный партер", lat: 55.7312, lng: 37.6034 },
@@ -865,51 +979,49 @@
       { id: "point_20", number: 20, title: "Главные арки у центрального входа", zone: "Центральный партер", lat: 55.7328, lng: 37.6039 }
     ];
 
-    // Рабочая переменная прогресса (массив ID найденных точек)
     let foundIds = [];
     let selectedLocationId = null;
-    let leafletMap = null;
-    let pinsLayerGroup = null;
+    let questMap = null;
+    let mapStyleLoaded = false;
+    let fallbackStyleUsed = false;
     const markersIndex = new Map();
     let html5QrInstance = null;
     let lastScanRecord = { code: "", timestamp: 0 };
 
-    // 1. Инициализация при полной загрузке DOM (DOMContentLoaded)
+    // Переменные секретного жеста сброса (5 нажатий за 2.5 секунды)
+    const SECRET_TAP_COUNT_REQUIRED = 5;
+    const SECRET_TAP_WINDOW_MS = 2500;
+    let secretTapTimestamps = [];
+
     document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("promo-code-text").textContent = PROMO_CODE;
 
-      // Загружаем сохраненный прогресс из localStorage в рабочую переменную
       foundIds = readStoredIds();
       if (foundIds.length > 0) {
         selectedLocationId = foundIds[foundIds.length - 1];
       }
 
-      // Инициализируем карту и сразу отрисовываем сохраненные пины, счетчик и список находок
-      initializeLeafletMap();
+      initializeVectorMap();
       syncFoundPinsOnMap();
       updateProgressAndFoundListUI();
       attachUIEvents();
 
-      // Если есть сохраненные точки — центрируем карту на последней найденной метке
-      if (selectedLocationId && leafletMap) {
+      if (selectedLocationId && questMap) {
         const lastLoc = QUEST_LOCATIONS.find((loc) => loc.id === selectedLocationId);
         if (lastLoc) {
-          leafletMap.setView([lastLoc.lat, lastLoc.lng], 16);
+          questMap.jumpTo({ center: [lastLoc.lng, lastLoc.lat], zoom: 15.8 });
         }
       }
 
-      // Если в localStorage уже собраны все 20 из 20 — сразу показываем модальное окно с промокодом
       if (foundIds.length >= QUEST_LOCATIONS.length) {
         showVictoryModalWithConfetti();
       }
     });
 
-    // Чтение и валидация массива найденных ID из localStorage
     function readStoredIds() {
       try {
         let raw = localStorage.getItem(STORAGE_KEY);
 
-        // Проверка старых ключей на случай, если данные сохранялись в прошлой версии
         if (!raw) {
           for (const legacyKey of LEGACY_STORAGE_KEYS) {
             const legacyRaw = localStorage.getItem(legacyKey);
@@ -937,7 +1049,6 @@
           }
         }
 
-        // Синхронизируем проверенный массив обратно в основной ключ localStorage
         if (normalizedIds.length > 0) {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedIds));
         }
@@ -948,47 +1059,82 @@
       }
     }
 
-    // Сохранение текущего массива найденных ID в localStorage через JSON.stringify
     function persistFoundIds() {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(foundIds));
       } catch (err) {}
     }
 
-    function initializeLeafletMap() {
-      leafletMap = L.map("quest-map", {
-        center: DEFAULT_MAP_CENTER,
-        zoom: DEFAULT_MAP_ZOOM,
-        zoomControl: false
-      });
+    function clearAllProgress() {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        for (const legacyKey of LEGACY_STORAGE_KEYS) {
+          localStorage.removeItem(legacyKey);
+        }
+      } catch (err) {}
 
-      L.control.zoom({ position: "topright" }).addTo(leafletMap);
+      foundIds = [];
+      selectedLocationId = null;
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: "&copy; OpenStreetMap"
-      }).addTo(leafletMap);
+      syncFoundPinsOnMap();
+      updateProgressAndFoundListUI();
 
-      pinsLayerGroup = L.layerGroup().addTo(leafletMap);
-      setTimeout(() => leafletMap.invalidateSize(), 150);
+      document.getElementById("victory-modal").classList.add("hidden");
+      document.getElementById("reset-modal").classList.add("hidden");
+
+      if (questMap) {
+        questMap.flyTo({
+          center: [DEFAULT_MAP_CENTER[1], DEFAULT_MAP_CENTER[0]],
+          zoom: DEFAULT_MAP_ZOOM,
+          bearing: 0,
+          pitch: 0,
+          speed: 1.4
+        });
+      }
+
+      switchActiveTab("map");
+      displayToast("Прогресс квеста полностью сброшен.");
     }
 
-    function buildPinIcon(number, isHighlighted) {
-      const fill = isHighlighted ? "#f97316" : "#10b981";
-      return L.divIcon({
-        className: "custom-leaflet-pin",
-        iconSize: [40, 48],
-        iconAnchor: [20, 44],
-        popupAnchor: [0, -40],
-        html: `
-          <div style="position:relative;width:40px;height:48px;display:flex;justify-content:center;">
-            <div style="width:36px;height:36px;border-radius:999px;background:${fill};border:3px solid #fff;box-shadow:0 4px 12px rgba(15,23,42,0.22);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;">
-              ${number}
-            </div>
-            <div style="position:absolute;bottom:4px;width:10px;height:10px;background:${fill};transform:rotate(45deg);border-right:2px solid #fff;border-bottom:2px solid #fff;"></div>
-          </div>
-        `
+    function initializeVectorMap() {
+      if (typeof maplibregl === "undefined") return;
+
+      questMap = new maplibregl.Map({
+        container: "quest-map",
+        style: PRIMARY_VECTOR_STYLE,
+        center: [DEFAULT_MAP_CENTER[1], DEFAULT_MAP_CENTER[0]],
+        zoom: DEFAULT_MAP_ZOOM,
+        pitch: 25,
+        attributionControl: false
       });
+
+      questMap.addControl(new maplibregl.NavigationControl({ showCompass: true }), "top-right");
+      questMap.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-right");
+
+      questMap.on("load", () => {
+        mapStyleLoaded = true;
+      });
+
+      questMap.on("error", () => {
+        if (!mapStyleLoaded && !fallbackStyleUsed && questMap) {
+          fallbackStyleUsed = true;
+          questMap.setStyle(FALLBACK_VECTOR_STYLE);
+        }
+      });
+
+      setTimeout(() => questMap.resize(), 150);
+    }
+
+    function createPinElement(number, isHighlighted) {
+      const root = document.createElement("div");
+      root.className = "quest-map-pin" + (isHighlighted ? " is-selected" : "");
+      root.innerHTML = `
+        <div class="quest-map-pin-inner">
+          <div class="quest-map-pin-head">${number}</div>
+          <div class="quest-map-pin-tail"></div>
+        </div>
+      `;
+      return root;
     }
 
     function getFoundLocationsInOrder() {
@@ -1001,20 +1147,47 @@
       return ordered;
     }
 
-    // 2. Отрисовка открытых пинов на карте Leaflet
-    function syncFoundPinsOnMap() {
-      if (!pinsLayerGroup) return;
-      pinsLayerGroup.clearLayers();
+    function clearMapMarkers() {
+      markersIndex.forEach((entry) => {
+        entry.marker.remove();
+      });
       markersIndex.clear();
+    }
+
+    function highlightSelectedMarkerOnMap() {
+      markersIndex.forEach((entry, id) => {
+        entry.element.classList.toggle("is-selected", id === selectedLocationId);
+      });
+    }
+
+    function openMarkerPopupById(locationId) {
+      markersIndex.forEach((entry, id) => {
+        const popup = entry.marker.getPopup();
+        if (!popup) return;
+        if (id === locationId) {
+          if (!popup.isOpen()) {
+            entry.marker.togglePopup();
+          }
+        } else if (popup.isOpen()) {
+          entry.marker.togglePopup();
+        }
+      });
+    }
+
+    function syncFoundPinsOnMap() {
+      if (!questMap) return;
+      clearMapMarkers();
 
       const foundLocations = getFoundLocationsInOrder();
       foundLocations.forEach((loc) => {
         const isSelected = loc.id === selectedLocationId;
-        const marker = L.marker([loc.lat, loc.lng], {
-          icon: buildPinIcon(loc.number, isSelected)
-        });
+        const el = createPinElement(loc.number, isSelected);
 
-        marker.bindPopup(`
+        const popup = new maplibregl.Popup({
+          offset: 44,
+          closeButton: true,
+          maxWidth: "250px"
+        }).setHTML(`
           <div>
             <div style="font-size:11px;font-weight:700;color:#059669;margin-bottom:2px;">Локация №${loc.number} · Открыта</div>
             <div style="font-size:14px;font-weight:700;color:#0f172a;">${loc.title}</div>
@@ -1022,18 +1195,21 @@
           </div>
         `);
 
-        marker.on("click", () => {
+        const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
+          .setLngLat([loc.lng, loc.lat])
+          .setPopup(popup)
+          .addTo(questMap);
+
+        el.addEventListener("click", () => {
           selectedLocationId = loc.id;
-          syncFoundPinsOnMap();
+          highlightSelectedMarkerOnMap();
           updateProgressAndFoundListUI();
         });
 
-        marker.addTo(pinsLayerGroup);
-        markersIndex.set(loc.id, marker);
+        markersIndex.set(loc.id, { marker, element: el });
       });
     }
 
-    // 2. Обновление счетчика прогресса и списка найденных локаций под картой
     function updateProgressAndFoundListUI() {
       const total = QUEST_LOCATIONS.length;
       const foundCount = foundIds.length;
@@ -1044,6 +1220,7 @@
       document.getElementById("progress-counter-heading").textContent = `Найдено: ${foundCount} из ${total}`;
       document.getElementById("progress-percentage").textContent = `${percentage}%`;
       document.getElementById("progress-bar-fill").style.width = `${percentage}%`;
+      document.querySelector(".progress-bar-outer").setAttribute("aria-valuenow", String(foundCount));
 
       document.getElementById("header-counter").classList.toggle("hidden", isComplete);
       document.getElementById("header-prize-button").classList.toggle("hidden", !isComplete);
@@ -1080,12 +1257,15 @@
         `;
         button.addEventListener("click", () => {
           selectedLocationId = loc.id;
-          syncFoundPinsOnMap();
+          highlightSelectedMarkerOnMap();
           updateProgressAndFoundListUI();
-          const marker = markersIndex.get(loc.id);
-          if (leafletMap && marker) {
-            leafletMap.flyTo([loc.lat, loc.lng], 16, { duration: 0.6 });
-            marker.openPopup();
+          if (questMap) {
+            questMap.flyTo({
+              center: [loc.lng, loc.lat],
+              zoom: 16.4,
+              speed: 1.3
+            });
+            openMarkerPopupById(loc.id);
           }
           window.scrollTo({ top: 0, behavior: "smooth" });
         });
@@ -1094,7 +1274,6 @@
       });
     }
 
-    // 3. Обработка сканирования и мгновенное сохранение в localStorage
     function processScannedQrText(rawText) {
       const cleaned = (rawText || "").trim();
       const matched = QUEST_LOCATIONS.find(
@@ -1108,12 +1287,17 @@
 
       if (foundIds.includes(matched.id)) {
         selectedLocationId = matched.id;
+        highlightSelectedMarkerOnMap();
+        updateProgressAndFoundListUI();
         switchActiveTab("map");
+        if (questMap) {
+          questMap.flyTo({ center: [matched.lng, matched.lat], zoom: 16.4, speed: 1.3 });
+          openMarkerPopupById(matched.id);
+        }
         displayToast(`Локация «${matched.title}» уже есть в вашем списке находок!`);
         return;
       }
 
-      // Добавляем новый ID и сразу сохраняем массив через JSON.stringify в localStorage
       foundIds.push(matched.id);
       persistFoundIds();
 
@@ -1122,10 +1306,9 @@
       updateProgressAndFoundListUI();
       switchActiveTab("map");
 
-      const marker = markersIndex.get(matched.id);
-      if (leafletMap && marker) {
-        leafletMap.flyTo([matched.lat, matched.lng], 16, { duration: 0.6 });
-        marker.openPopup();
+      if (questMap) {
+        questMap.flyTo({ center: [matched.lng, matched.lat], zoom: 16.4, speed: 1.3 });
+        openMarkerPopupById(matched.id);
       }
 
       if (foundIds.length >= QUEST_LOCATIONS.length) {
@@ -1212,11 +1395,22 @@
 
       if (showMap) {
         stopLiveCameraScanner();
-        if (leafletMap) {
-          setTimeout(() => leafletMap.invalidateSize(), 100);
+        if (questMap) {
+          setTimeout(() => questMap.resize(), 80);
         }
       } else {
         startLiveCameraScanner();
+      }
+    }
+
+    function handleSecretResetTap() {
+      const now = Date.now();
+      secretTapTimestamps = secretTapTimestamps.filter((t) => now - t <= SECRET_TAP_WINDOW_MS);
+      secretTapTimestamps.push(now);
+
+      if (secretTapTimestamps.length >= SECRET_TAP_COUNT_REQUIRED) {
+        secretTapTimestamps = [];
+        document.getElementById("reset-modal").classList.remove("hidden");
       }
     }
 
@@ -1229,8 +1423,14 @@
       document.getElementById("btn-pause-camera").addEventListener("click", stopLiveCameraScanner);
 
       document.getElementById("btn-center-map").addEventListener("click", () => {
-        if (leafletMap) {
-          leafletMap.flyTo(DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM, { duration: 0.6 });
+        if (questMap) {
+          questMap.flyTo({
+            center: [DEFAULT_MAP_CENTER[1], DEFAULT_MAP_CENTER[0]],
+            zoom: DEFAULT_MAP_ZOOM,
+            bearing: 0,
+            pitch: 25,
+            speed: 1.3
+          });
         }
       });
 
@@ -1247,6 +1447,13 @@
         setTimeout(() => {
           btn.textContent = "Скопировать промокод";
         }, 2200);
+      });
+
+      // Секретный триггер сброса: 5 быстрых нажатий на зеленую иконку с молнией в шапке
+      document.getElementById("secret-reset-trigger").addEventListener("click", handleSecretResetTap);
+      document.getElementById("btn-confirm-reset").addEventListener("click", clearAllProgress);
+      document.getElementById("btn-cancel-reset").addEventListener("click", () => {
+        document.getElementById("reset-modal").classList.add("hidden");
       });
     }
   </script>
