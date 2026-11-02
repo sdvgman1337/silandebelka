@@ -1,26 +1,1194 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Семейный QR-Квест — Парк Отдыха</title>
-    <meta name="description" content="Интерактивное мобильное веб-приложение для прохождения семейного QR-квеста на территории базы отдыха." />
-    <meta property="og:title" content="Семейный QR-Квест — Парк Отдыха" />
-    <meta property="og:description" content="Интерактивное мобильное веб-приложение для прохождения семейного QR-квеста на территории базы отдыха." />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      crossorigin=""
-    />
-  </head>
-  <body class="bg-[#F6F9F7] text-slate-800 antialiased selection:bg-emerald-500/20 selection:text-emerald-900">
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Семейный Эко-Квест — Парк Отдыха</title>
+  <meta name="description" content="Интерактивное веб-приложение для прохождения QR-квеста на территории базы отдыха с картой локаций, встроенным сканером и системой наград." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <style>
+    :root {
+      --bg-body: #ffffff;
+      --bg-secondary: #f7faf8;
+      --surface: #ffffff;
+      --green-primary: #10b981;
+      --green-dark: #059669;
+      --green-soft: #ecfdf5;
+      --green-border: #a7f3d0;
+      --orange-primary: #f97316;
+      --orange-soft: #fff7ed;
+      --orange-border: #fed7aa;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border-light: #e2e8f0;
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+      --shadow-card: 0 8px 24px -6px rgba(15, 23, 42, 0.07), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg-body);
+      color: var(--text-main);
+      min-height: 100dvh;
+      overflow-x: hidden;
+      line-height: 1.45;
+    }
+
+    .app-wrapper {
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100dvh;
+      background-color: var(--bg-secondary);
+      padding-bottom: 104px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 500;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border-light);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-badge-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, var(--green-primary), var(--green-dark));
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.28);
+    }
+
+    .brand-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .brand-subtitle {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-counter-pill {
+      padding: 7px 14px;
+      border-radius: var(--radius-md);
+      background: var(--green-soft);
+      border: 1px solid var(--green-border);
+      color: var(--green-dark);
+      font-size: 14px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+    }
+
+    .header-reward-btn {
+      min-height: 42px;
+      padding: 8px 14px;
+      border-radius: var(--radius-md);
+      border: none;
+      background: var(--orange-primary);
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+      flex-shrink: 0;
+    }
+
+    .main-area {
+      padding: 16px;
+      flex: 1;
+    }
+
+    .tab-container {
+      display: none;
+    }
+
+    .tab-container.active {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      animation: fadeView 0.2s ease-out;
+    }
+
+    @keyframes fadeView {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .surface-card {
+      background: var(--surface);
+      border-radius: var(--radius-xl);
+      padding: 18px;
+      border: 1px solid var(--border-light);
+      box-shadow: var(--shadow-card);
+    }
+
+    .map-card-container {
+      padding: 12px;
+    }
+
+    .map-viewport-wrapper {
+      position: relative;
+      isolation: isolate;
+      width: 100%;
+      height: 315px;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      border: 1px solid var(--border-light);
+      background: var(--green-soft);
+    }
+
+    #quest-map {
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+    }
+
+    .map-center-btn {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      z-index: 20;
+      min-height: 42px;
+      padding: 8px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border-light);
+      background: rgba(255, 255, 255, 0.96);
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+      cursor: pointer;
+    }
+
+    .leaflet-popup-content-wrapper {
+      border-radius: 16px !important;
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.16) !important;
+    }
+
+    .leaflet-popup-content {
+      margin: 12px 14px !important;
+      font-family: 'Plus Jakarta Sans', sans-serif !important;
+    }
+
+    .custom-leaflet-pin {
+      background: transparent;
+      border: none;
+    }
+
+    .progress-top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .progress-kicker {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--green-dark);
+      margin-bottom: 2px;
+    }
+
+    .progress-big-counter {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text-main);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .progress-badge-square {
+      width: 54px;
+      height: 54px;
+      border-radius: 16px;
+      background: var(--green-soft);
+      border: 1px solid var(--green-border);
+      color: var(--green-dark);
+      font-size: 15px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+    }
+
+    .progress-bar-outer {
+      width: 100%;
+      height: 14px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      overflow: hidden;
+      margin-bottom: 18px;
+    }
+
+    .progress-bar-inner {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--green-primary), var(--orange-primary));
+      transition: width 0.35s ease;
+    }
+
+    .claim-prize-cta {
+      width: 100%;
+      min-height: 54px;
+      margin-bottom: 18px;
+      padding: 14px 18px;
+      border-radius: 16px;
+      border: none;
+      background: linear-gradient(90deg, var(--orange-primary), #fb923c);
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 8px 20px -4px rgba(249, 115, 22, 0.35);
+    }
+
+    .zero-found-box {
+      background: var(--green-soft);
+      border: 1px solid var(--green-border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      text-align: center;
+    }
+
+    .zero-found-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 6px;
+    }
+
+    .zero-found-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .found-list-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .found-cards-grid {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .found-location-card {
+      width: 100%;
+      min-height: 68px;
+      padding: 14px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-light);
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      text-align: left;
+      font-family: inherit;
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+    }
+
+    .found-location-card:active {
+      transform: scale(0.99);
+    }
+
+    .found-location-card.selected {
+      background: var(--orange-soft);
+      border-color: var(--orange-border);
+    }
+
+    .found-card-index {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: var(--green-dark);
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .found-location-card.selected .found-card-index {
+      background: var(--orange-primary);
+    }
+
+    .found-card-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .found-card-name {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .found-card-sub {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .scanner-head {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .scanner-heading {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-top: 2px;
+    }
+
+    .scanner-sub {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .camera-stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      max-height: 350px;
+      margin: 0 auto 16px;
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      background: #0f172a;
+      border: 3px solid var(--green-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #qr-reader {
+      width: 100%;
+      height: 100%;
+      border: none !important;
+    }
+
+    #qr-reader video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+    }
+
+    #qr-reader__dashboard,
+    #qr-reader__status_span {
+      display: none !important;
+    }
+
+    .camera-idle-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.92);
+      color: #ffffff;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .camera-idle-title {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .camera-idle-desc {
+      font-size: 14px;
+      color: #cbd5e1;
+      margin-bottom: 18px;
+      max-width: 260px;
+    }
+
+    .btn-primary {
+      width: 100%;
+      min-height: 54px;
+      padding: 14px 22px;
+      border-radius: 16px;
+      border: none;
+      background: var(--green-dark);
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(5, 150, 105, 0.25);
+    }
+
+    .btn-secondary {
+      width: 100%;
+      min-height: 52px;
+      padding: 12px 20px;
+      border-radius: 16px;
+      border: 1px solid var(--border-light);
+      background: #f1f5f9;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .camera-alert {
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: var(--orange-soft);
+      border: 1px solid var(--orange-border);
+      color: #9a3412;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 14px;
+    }
+
+    .scan-toast {
+      margin-bottom: 14px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: var(--green-soft);
+      border: 1px solid var(--green-border);
+      color: #064e3b;
+      font-size: 14px;
+      font-weight: 700;
+      box-shadow: var(--shadow-card);
+    }
+
+    .bottom-nav-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 500;
+      background: rgba(255, 255, 255, 0.97);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-top: 1px solid var(--border-light);
+      box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.06);
+    }
+
+    .bottom-nav-grid {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 10px 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .bottom-tab-button {
+      min-height: 54px;
+      border-radius: 16px;
+      border: none;
+      background: #f1f5f9;
+      color: #475569;
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .bottom-tab-button.active {
+      background: var(--green-dark);
+      color: #ffffff;
+      box-shadow: 0 6px 16px rgba(5, 150, 105, 0.28);
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-dialog-card {
+      width: 100%;
+      max-width: 380px;
+      background: #ffffff;
+      border-radius: 28px;
+      padding: 26px 22px;
+      text-align: center;
+      box-shadow: 0 24px 48px rgba(15, 23, 42, 0.24);
+    }
+
+    .modal-icon-badge {
+      width: 76px;
+      height: 76px;
+      border-radius: 24px;
+      margin: 0 auto 16px;
+      background: linear-gradient(135deg, #fbbf24, var(--orange-primary));
+      color: #ffffff;
+      font-size: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 24px rgba(249, 115, 22, 0.3);
+    }
+
+    .modal-overline {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--green-dark);
+      margin-bottom: 4px;
+    }
+
+    .modal-heading {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 8px;
+    }
+
+    .modal-body-text {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 18px;
+    }
+
+    .promo-box {
+      padding: 16px;
+      border-radius: 18px;
+      background: var(--green-soft);
+      border: 2px dashed var(--green-primary);
+      margin-bottom: 18px;
+    }
+
+    .promo-box-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--green-dark);
+      margin-bottom: 4px;
+    }
+
+    .promo-box-code {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      color: var(--green-dark);
+      user-select: all;
+    }
+
+    .modal-btn-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-wrapper">
+    <header class="app-header">
+      <div class="brand-info">
+        <div class="brand-badge-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3L4 14h6l-1 7 9-11h-6l1-7z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">Семейный Эко-Квест</h1>
+          <p class="brand-subtitle">20 секретных мест отдыха</p>
+        </div>
+      </div>
+
+      <div id="header-counter" class="header-counter-pill">0 / 20</div>
+      <button id="header-prize-button" class="header-reward-btn hidden" type="button">Приз</button>
+    </header>
+
+    <main class="main-area">
+      <div id="scan-toast" class="scan-toast hidden" role="status" aria-live="polite"></div>
+
+      <div id="view-map" class="tab-container active">
+        <section class="surface-card map-card-container" aria-label="Карта парка">
+          <div class="map-viewport-wrapper">
+            <div id="quest-map"></div>
+            <button id="btn-center-map" class="map-center-btn" type="button">
+              <span>Весь парк</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="surface-card" aria-label="Прогресс и список находок">
+          <div class="progress-top-row">
+            <div>
+              <span class="progress-kicker">Ваш маршрут приключений</span>
+              <h2 id="progress-counter-heading" class="progress-big-counter">Найдено: 0 из 20</h2>
+            </div>
+            <div id="progress-percentage" class="progress-badge-square">0%</div>
+          </div>
+
+          <div class="progress-bar-outer" role="progressbar" aria-valuemin="0" aria-valuemax="20" aria-valuenow="0">
+            <div id="progress-bar-fill" class="progress-bar-inner"></div>
+          </div>
+
+          <button id="btn-open-reward-banner" class="claim-prize-cta hidden" type="button">
+            Открыть призовой промокод
+          </button>
+
+          <div id="empty-found-container" class="zero-found-box">
+            <h3 class="zero-found-title">Пока не открыто ни одной локации</h3>
+            <p class="zero-found-desc">
+              Гуляйте по территории, находите таблички с QR-кодами и сканируйте их камерой — каждая найденная точка сразу появится на карте и в вашем списке!
+            </p>
+            <button id="btn-go-scanner" class="btn-primary" type="button">
+              Сканировать первый QR-код
+            </button>
+          </div>
+
+          <div id="found-list-section" class="hidden">
+            <div class="found-list-header">
+              <span id="found-list-title">Найденные локации</span>
+              <span>Нажмите, чтобы показать на карте</span>
+            </div>
+            <ul id="found-locations-ul" class="found-cards-grid"></ul>
+          </div>
+        </section>
+      </div>
+
+      <div id="view-scanner" class="tab-container">
+        <section class="surface-card" aria-label="Сканер QR-кодов">
+          <div class="scanner-head">
+            <span class="progress-kicker">Камера смартфона</span>
+            <h2 class="scanner-heading">Наведите камеру на QR-код</h2>
+            <p class="scanner-sub">Поместите найденный QR-код в центр рамки для автоматического сканирования</p>
+          </div>
+
+          <div class="camera-stage">
+            <div id="qr-reader"></div>
+            <div id="camera-idle-placeholder" class="camera-idle-overlay">
+              <h3 class="camera-idle-title">Камера готова к работе</h3>
+              <p class="camera-idle-desc">Нажмите кнопку ниже и разрешите доступ к камере вашего смартфона.</p>
+              <button id="btn-enable-camera" class="btn-primary" type="button" style="max-width: 240px;">
+                Включить камеру
+              </button>
+            </div>
+          </div>
+
+          <div id="camera-error-alert" class="camera-alert hidden" role="alert"></div>
+
+          <button id="btn-pause-camera" class="btn-secondary hidden" type="button">
+            Приостановить камеру
+          </button>
+        </section>
+      </div>
+    </main>
+
+    <nav class="bottom-nav-bar" aria-label="Основная навигация">
+      <div class="bottom-nav-grid">
+        <button id="tab-btn-map" class="bottom-tab-button active" type="button">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon>
+            <line x1="9" y1="3" x2="9" y2="18"></line>
+            <line x1="15" y1="6" x2="15" y2="21"></line>
+          </svg>
+          <span>Карта</span>
+        </button>
+
+        <button id="tab-btn-scanner" class="bottom-tab-button" type="button">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
+            <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
+            <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
+            <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
+            <rect x="7" y="7" width="10" height="10" rx="2"></rect>
+          </svg>
+          <span>Сканировать</span>
+        </button>
+      </div>
+    </nav>
+
+    <div id="victory-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="victory-heading">
+      <div class="modal-dialog-card">
+        <div class="modal-icon-badge" aria-hidden="true">🏆</div>
+        <div class="modal-overline">Собрано 20 из 20 локаций!</div>
+        <h2 id="victory-heading" class="modal-heading">Поздравляем с победой!</h2>
+        <p class="modal-body-text">
+          Вы нашли все 20 секретных мест на территории базы отдыха! Покажите этот промокод администратору на ресепшене для получения вашей скидки:
+        </p>
+
+        <div class="promo-box">
+          <span class="promo-box-label">ВАШ ПРОМОКОД ПОБЕДИТЕЛЯ</span>
+          <strong id="promo-code-text" class="promo-box-code">FAMILY2026</strong>
+        </div>
+
+        <div class="modal-btn-stack">
+          <button id="btn-copy-promo" class="btn-primary" type="button">Скопировать промокод</button>
+          <button id="btn-close-victory" class="btn-secondary" type="button">Вернуться к карте</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const PROMO_CODE = "FAMILY2026";
+    const STORAGE_KEY = "park_quest_found_ids_v2";
+    const DEFAULT_MAP_CENTER = [55.7285, 37.6015];
+    const DEFAULT_MAP_ZOOM = 15;
+
+    const QUEST_LOCATIONS = [
+      { id: "point_01", number: 1,  title: "Главный фонтан на центральной аллее", zone: "Центральный партер", lat: 55.7312, lng: 37.6034 },
+      { id: "point_02", number: 2,  title: "Лодочная пристань у Голицынского пруда", zone: "Набережная и пруды", lat: 55.7294, lng: 37.5998 },
+      { id: "point_03", number: 3,  title: "Ажурная беседка у розария", zone: "Цветочный сад", lat: 55.7301, lng: 37.6012 },
+      { id: "point_04", number: 4,  title: "Детская площадка «Морской корабль»", zone: "Семейная зона", lat: 55.7282, lng: 37.6025 },
+      { id: "point_05", number: 5,  title: "Смотровая терраса у Андреевского моста", zone: "Набережная и пруды", lat: 55.7265, lng: 37.5968 },
+      { id: "point_06", number: 6,  title: "Летний кинотеатр на газоне", zone: "Центральный партер", lat: 55.7306, lng: 37.6052 },
+      { id: "point_07", number: 7,  title: "Павильон проката веломобилей", zone: "Активный отдых", lat: 55.7321, lng: 37.6048 },
+      { id: "point_08", number: 8,  title: "Каменный гротик у малого пруда", zone: "Нескучный лес", lat: 55.7273, lng: 37.5985 },
+      { id: "point_09", number: 9,  title: "Оранжерея с тропическими растениями", zone: "Цветочный сад", lat: 55.7261, lng: 37.5999 },
+      { id: "point_10", number: 10, title: "Деревянный мостик над лесным оврагом", zone: "Нескучный лес", lat: 55.7239, lng: 37.5962 },
+      { id: "point_11", number: 11, title: "Беседка «Ротонда 800-летия»", zone: "Набережная и пруды", lat: 55.7248, lng: 37.5924 },
+      { id: "point_12", number: 12, title: "Лесной чайный домик", zone: "Семейная зона", lat: 55.7232, lng: 37.5947 },
+      { id: "point_13", number: 13, title: "Веревочный городок среди сосен", zone: "Активный отдых", lat: 55.7254, lng: 37.5978 },
+      { id: "point_14", number: 14, title: "Домик с кормушками для белок и фазанов", zone: "Живой уголок", lat: 55.7224, lng: 37.5931 },
+      { id: "point_15", number: 15, title: "Шахматный павильон под липами", zone: "Нескучный лес", lat: 55.7241, lng: 37.5989 },
+      { id: "point_16", number: 16, title: "Солнечные часы на южной поляне", zone: "Цветочный сад", lat: 55.7289, lng: 37.6041 },
+      { id: "point_17", number: 17, title: "Зеленый амфитеатр у воды", zone: "Набережная и пруды", lat: 55.7278, lng: 37.5951 },
+      { id: "point_18", number: 18, title: "Аллея вековых дубов", zone: "Нескучный лес", lat: 55.7218, lng: 37.5958 },
+      { id: "point_19", number: 19, title: "Семейное кафе «Лесная поляна»", zone: "Семейная зона", lat: 55.7269, lng: 37.6019 },
+      { id: "point_20", number: 20, title: "Главные арки у центрального входа", zone: "Центральный партер", lat: 55.7328, lng: 37.6039 }
+    ];
+
+    let foundIds = readStoredIds();
+    let selectedLocationId = null;
+    let leafletMap = null;
+    let pinsLayerGroup = null;
+    const markersIndex = new Map();
+    let html5QrInstance = null;
+    let lastScanRecord = { code: "", timestamp: 0 };
+
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("promo-code-text").textContent = PROMO_CODE;
+      initializeLeafletMap();
+      updateProgressAndFoundListUI();
+      syncFoundPinsOnMap();
+      attachUIEvents();
+    });
+
+    function readStoredIds() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        const validIds = new Set(QUEST_LOCATIONS.map((item) => item.id));
+        return Array.from(new Set(parsed.filter((id) => typeof id === "string" && validIds.has(id))));
+      } catch (err) {
+        return [];
+      }
+    }
+
+    function persistFoundIds() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(foundIds));
+      } catch (err) {}
+    }
+
+    function initializeLeafletMap() {
+      leafletMap = L.map("quest-map", {
+        center: DEFAULT_MAP_CENTER,
+        zoom: DEFAULT_MAP_ZOOM,
+        zoomControl: false
+      });
+
+      L.control.zoom({ position: "topright" }).addTo(leafletMap);
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap"
+      }).addTo(leafletMap);
+
+      pinsLayerGroup = L.layerGroup().addTo(leafletMap);
+      setTimeout(() => leafletMap.invalidateSize(), 150);
+    }
+
+    function buildPinIcon(number, isHighlighted) {
+      const fill = isHighlighted ? "#f97316" : "#10b981";
+      return L.divIcon({
+        className: "custom-leaflet-pin",
+        iconSize: [40, 48],
+        iconAnchor: [20, 44],
+        popupAnchor: [0, -40],
+        html: `
+          <div style="position:relative;width:40px;height:48px;display:flex;justify-content:center;">
+            <div style="width:36px;height:36px;border-radius:999px;background:${fill};border:3px solid #fff;box-shadow:0 4px 12px rgba(15,23,42,0.22);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;">
+              ${number}
+            </div>
+            <div style="position:absolute;bottom:4px;width:10px;height:10px;background:${fill};transform:rotate(45deg);border-right:2px solid #fff;border-bottom:2px solid #fff;"></div>
+          </div>
+        `
+      });
+    }
+
+    function getFoundLocationsInOrder() {
+      const lookup = new Map(QUEST_LOCATIONS.map((loc) => [loc.id, loc]));
+      const ordered = [];
+      for (let i = foundIds.length - 1; i >= 0; i--) {
+        const found = lookup.get(foundIds[i]);
+        if (found) ordered.push(found);
+      }
+      return ordered;
+    }
+
+    function syncFoundPinsOnMap() {
+      if (!pinsLayerGroup) return;
+      pinsLayerGroup.clearLayers();
+      markersIndex.clear();
+
+      const foundLocations = getFoundLocationsInOrder();
+      foundLocations.forEach((loc) => {
+        const isSelected = loc.id === selectedLocationId;
+        const marker = L.marker([loc.lat, loc.lng], {
+          icon: buildPinIcon(loc.number, isSelected)
+        });
+
+        marker.bindPopup(`
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#059669;margin-bottom:2px;">Локация №${loc.number} · Открыта</div>
+            <div style="font-size:14px;font-weight:700;color:#0f172a;">${loc.title}</div>
+            <div style="font-size:12px;color:#64748b;">${loc.zone}</div>
+          </div>
+        `);
+
+        marker.on("click", () => {
+          selectedLocationId = loc.id;
+          syncFoundPinsOnMap();
+          updateProgressAndFoundListUI();
+        });
+
+        marker.addTo(pinsLayerGroup);
+        markersIndex.set(loc.id, marker);
+      });
+    }
+
+    function updateProgressAndFoundListUI() {
+      const total = QUEST_LOCATIONS.length;
+      const foundCount = foundIds.length;
+      const percentage = Math.round((foundCount / total) * 100);
+      const isComplete = foundCount >= total;
+
+      document.getElementById("header-counter").textContent = `${foundCount} / ${total}`;
+      document.getElementById("progress-counter-heading").textContent = `Найдено: ${foundCount} из ${total}`;
+      document.getElementById("progress-percentage").textContent = `${percentage}%`;
+      document.getElementById("progress-bar-fill").style.width = `${percentage}%`;
+
+      document.getElementById("header-counter").classList.toggle("hidden", isComplete);
+      document.getElementById("header-prize-button").classList.toggle("hidden", !isComplete);
+      document.getElementById("btn-open-reward-banner").classList.toggle("hidden", !isComplete);
+
+      const emptyContainer = document.getElementById("empty-found-container");
+      const listSection = document.getElementById("found-list-section");
+      const listUl = document.getElementById("found-locations-ul");
+
+      if (foundCount === 0) {
+        emptyContainer.classList.remove("hidden");
+        listSection.classList.add("hidden");
+        listUl.innerHTML = "";
+        return;
+      }
+
+      emptyContainer.classList.add("hidden");
+      listSection.classList.remove("hidden");
+      document.getElementById("found-list-title").textContent = `Найденные локации (${foundCount})`;
+
+      listUl.innerHTML = "";
+      const foundLocations = getFoundLocationsInOrder();
+      foundLocations.forEach((loc) => {
+        const li = document.createElement("li");
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "found-location-card" + (loc.id === selectedLocationId ? " selected" : "");
+        button.innerHTML = `
+          <div class="found-card-index">#${loc.number}</div>
+          <div class="found-card-body">
+            <div class="found-card-name">${loc.title}</div>
+            <div class="found-card-sub">📍 ${loc.zone}</div>
+          </div>
+        `;
+        button.addEventListener("click", () => {
+          selectedLocationId = loc.id;
+          syncFoundPinsOnMap();
+          updateProgressAndFoundListUI();
+          const marker = markersIndex.get(loc.id);
+          if (leafletMap && marker) {
+            leafletMap.flyTo([loc.lat, loc.lng], 16, { duration: 0.6 });
+            marker.openPopup();
+          }
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+        li.appendChild(button);
+        listUl.appendChild(li);
+      });
+    }
+
+    function processScannedQrText(rawText) {
+      const cleaned = (rawText || "").trim();
+      const matched = QUEST_LOCATIONS.find(
+        (loc) => loc.id.toLowerCase() === cleaned.toLowerCase() || cleaned.toLowerCase().includes(loc.id.toLowerCase())
+      );
+
+      if (!matched) {
+        displayToast("Этот QR-код не относится к маршруту квеста.");
+        return;
+      }
+
+      if (foundIds.includes(matched.id)) {
+        selectedLocationId = matched.id;
+        switchActiveTab("map");
+        displayToast(`Локация «${matched.title}» уже есть в вашем списке находок!`);
+        return;
+      }
+
+      foundIds.push(matched.id);
+      persistFoundIds();
+      selectedLocationId = matched.id;
+      syncFoundPinsOnMap();
+      updateProgressAndFoundListUI();
+      switchActiveTab("map");
+
+      const marker = markersIndex.get(matched.id);
+      if (leafletMap && marker) {
+        leafletMap.flyTo([matched.lat, matched.lng], 16, { duration: 0.6 });
+        marker.openPopup();
+      }
+
+      if (foundIds.length === QUEST_LOCATIONS.length) {
+        showVictoryModalWithConfetti();
+      } else {
+        displayToast(`Новая находка! Открыта локация «${matched.title}».`);
+      }
+    }
+
+    function showVictoryModalWithConfetti() {
+      if (typeof confetti === "function") {
+        confetti({
+          particleCount: 110,
+          spread: 80,
+          origin: { y: 0.55 },
+          colors: ["#10b981", "#f97316", "#fbbf24", "#0ea5e9"]
+        });
+      }
+      document.getElementById("victory-modal").classList.remove("hidden");
+    }
+
+    function displayToast(message) {
+      const toastEl = document.getElementById("scan-toast");
+      toastEl.textContent = message;
+      toastEl.classList.remove("hidden");
+      clearTimeout(window.__questToastTimeout);
+      window.__questToastTimeout = setTimeout(() => {
+        toastEl.classList.add("hidden");
+      }, 4000);
+    }
+
+    async function startLiveCameraScanner() {
+      const alertBox = document.getElementById("camera-error-alert");
+      alertBox.classList.add("hidden");
+
+      try {
+        await stopLiveCameraScanner();
+        document.getElementById("camera-idle-placeholder").classList.add("hidden");
+        document.getElementById("btn-pause-camera").classList.remove("hidden");
+
+        html5QrInstance = new Html5Qrcode("qr-reader");
+        await html5QrInstance.start(
+          { facingMode: "environment" },
+          { fps: 12, qrbox: { width: 230, height: 230 }, aspectRatio: 1.0 },
+          (decodedText) => {
+            const now = Date.now();
+            if (decodedText === lastScanRecord.code && now - lastScanRecord.timestamp < 2500) {
+              return;
+            }
+            lastScanRecord = { code: decodedText, timestamp: now };
+            processScannedQrText(decodedText);
+          },
+          () => {}
+        );
+      } catch (err) {
+        document.getElementById("camera-idle-placeholder").classList.remove("hidden");
+        document.getElementById("btn-pause-camera").classList.add("hidden");
+        alertBox.textContent = "Для сканирования QR-кодов необходим доступ к камере смартфона. Разрешите использование камеры в браузере и нажмите «Включить камеру».";
+        alertBox.classList.remove("hidden");
+      }
+    }
+
+    async function stopLiveCameraScanner() {
+      if (html5QrInstance) {
+        try {
+          const state = html5QrInstance.getState();
+          if (state === 2 || state === 3) {
+            await html5QrInstance.stop();
+          }
+          html5QrInstance.clear();
+        } catch (err) {}
+        html5QrInstance = null;
+      }
+      document.getElementById("camera-idle-placeholder").classList.remove("hidden");
+      document.getElementById("btn-pause-camera").classList.add("hidden");
+    }
+
+    function switchActiveTab(tabName) {
+      const showMap = tabName === "map";
+      document.getElementById("view-map").classList.toggle("active", showMap);
+      document.getElementById("view-scanner").classList.toggle("active", !showMap);
+      document.getElementById("tab-btn-map").classList.toggle("active", isMap => showMap);
+      document.getElementById("tab-btn-map").classList.toggle("active", showMap);
+      document.getElementById("tab-btn-scanner").classList.toggle("active", !showMap);
+
+      if (showMap) {
+        stopLiveCameraScanner();
+        if (leafletMap) {
+          setTimeout(() => leafletMap.invalidateSize(), 100);
+        }
+      } else {
+        startLiveCameraScanner();
+      }
+    }
+
+    function attachUIEvents() {
+      document.getElementById("tab-btn-map").addEventListener("click", () => switchActiveTab("map"));
+      document.getElementById("tab-btn-scanner").addEventListener("click", () => switchActiveTab("scanner"));
+      document.getElementById("btn-go-scanner").addEventListener("click", () => switchActiveTab("scanner"));
+
+      document.getElementById("btn-enable-camera").addEventListener("click", startLiveCameraScanner);
+      document.getElementById("btn-pause-camera").addEventListener("click", stopLiveCameraScanner);
+
+      document.getElementById("btn-center-map").addEventListener("click", () => {
+        if (leafletMap) {
+          leafletMap.flyTo(DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM, { duration: 0.6 });
+        }
+      });
+
+      document.getElementById("btn-open-reward-banner").addEventListener("click", showVictoryModalWithConfetti);
+      document.getElementById("header-prize-button").addEventListener("click", showVictoryModalWithConfetti);
+      document.getElementById("btn-close-victory").addEventListener("click", () => {
+        document.getElementById("victory-modal").classList.add("hidden");
+      });
+
+      document.getElementById("btn-copy-promo").addEventListener("click", (e) => {
+        navigator.clipboard.writeText(PROMO_CODE);
+        const btn = e.currentTarget;
+        btn.textContent = "Промокод скопирован!";
+        setTimeout(() => {
+          btn.textContent = "Скопировать промокод";
+        }, 2200);
+      });
+    }
+  </script>
+</body>
 </html>
